@@ -1,0 +1,16 @@
+# Django and Core Dependencies
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.0
+django-auth-ldap==4.6.0
+
+# Database
+psycopg==3.1.13
+
+# Environment and Configuration
+python-decouple==3.8
+django-environ==0.11.2
+
+# Development Dependencies
+django-debug-toolbar==4.2.0
