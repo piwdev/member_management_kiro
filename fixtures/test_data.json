@@ -1,0 +1,231 @@
+[
+  {
+    "model": "authentication.user",
+    "pk": 1,
+    "fields": {
+      "username": "test_admin",
+      "email": "admin@testcompany.com",
+      "first_name": "Admin",
+      "last_name": "User",
+      "is_staff": true,
+      "is_superuser": true,
+      "is_active": true,
+      "date_joined": "2023-01-01T00:00:00Z",
+      "employee_id": "ADMIN001",
+      "department": "IT",
+      "position": "System Administrator",
+      "location": "TOKYO"
+    }
+  },
+  {
+    "model": "authentication.user",
+    "pk": 2,
+    "fields": {
+      "username": "test_dev1",
+      "email": "dev1@testcompany.com",
+      "first_name": "Dev",
+      "last_name": "User1",
+      "is_staff": false,
+      "is_superuser": false,
+      "is_active": true,
+      "date_joined": "2023-04-01T00:00:00Z",
+      "employee_id": "DEV001",
+      "department": "開発部",
+      "position": "エンジニア",
+      "location": "TOKYO"
+    }
+  },
+  {
+    "model": "authentication.user",
+    "pk": 3,
+    "fields": {
+      "username": "test_sales1",
+      "email": "sales1@testcompany.com",
+      "first_name": "Sales",
+      "last_name": "User1",
+      "is_staff": false,
+      "is_superuser": false,
+      "is_active": true,
+      "date_joined": "2023-03-01T00:00:00Z",
+      "employee_id": "SALES001",
+      "department": "営業部",
+      "position": "マネージャー",
+      "location": "TOKYO"
+    }
+  },
+  {
+    "model": "employees.employee",
+    "pk": "550e8400-e29b-41d4-a716-446655440001",
+    "fields": {
+      "user": 2,
+      "employee_id": "DEV001",
+      "name": "田中太郎",
+      "name_kana": "タナカタロウ",
+      "email": "dev1@testcompany.com",
+      "department": "開発部",
+      "position": "エンジニア",
+      "location": "TOKYO",
+      "hire_date": "2022-04-01",
+      "status": "ACTIVE",
+      "phone_number": "090-1234-5678",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "employees.employee",
+    "pk": "550e8400-e29b-41d4-a716-446655440002",
+    "fields": {
+      "user": 3,
+      "employee_id": "SALES001",
+      "name": "山田次郎",
+      "name_kana": "ヤマダジロウ",
+      "email": "sales1@testcompany.com",
+      "department": "営業部",
+      "position": "マネージャー",
+      "location": "TOKYO",
+      "hire_date": "2021-10-01",
+      "status": "ACTIVE",
+      "phone_number": "090-9876-5432",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "devices.device",
+    "pk": "550e8400-e29b-41d4-a716-446655440010",
+    "fields": {
+      "type": "LAPTOP",
+      "manufacturer": "Dell",
+      "model": "Latitude 5520",
+      "serial_number": "DL001",
+      "purchase_date": "2023-01-15",
+      "warranty_expiry": "2026-01-15",
+      "status": "AVAILABLE",
+      "specifications": {
+        "cpu": "Intel Core i7-1165G7",
+        "ram": "16GB",
+        "storage": "512GB SSD",
+        "display": "15.6\" FHD"
+      },
+      "created_by": 1,
+      "created_at": "2023-01-15T00:00:00Z",
+      "updated_at": "2023-01-15T00:00:00Z"
+    }
+  },
+  {
+    "model": "devices.device",
+    "pk": "550e8400-e29b-41d4-a716-446655440011",
+    "fields": {
+      "type": "DESKTOP",
+      "manufacturer": "HP",
+      "model": "EliteDesk 800",
+      "serial_number": "HP001",
+      "purchase_date": "2022-12-01",
+      "warranty_expiry": "2025-12-01",
+      "status": "AVAILABLE",
+      "specifications": {
+        "cpu": "Intel Core i5-12500",
+        "ram": "32GB",
+        "storage": "1TB SSD"
+      },
+      "created_by": 1,
+      "created_at": "2022-12-01T00:00:00Z",
+      "updated_at": "2022-12-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "licenses.license",
+    "pk": "550e8400-e29b-41d4-a716-446655440020",
+    "fields": {
+      "software_name": "Microsoft Office 365",
+      "license_type": "Business Premium",
+      "total_count": 50,
+      "available_count": 48,
+      "expiry_date": "2024-12-31",
+      "pricing_model": "MONTHLY",
+      "unit_price": "1500.00",
+      "vendor_name": "Microsoft",
+      "description": "Office 365 Business Premium subscription",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "licenses.license",
+    "pk": "550e8400-e29b-41d4-a716-446655440021",
+    "fields": {
+      "software_name": "JetBrains IntelliJ IDEA",
+      "license_type": "Ultimate",
+      "total_count": 15,
+      "available_count": 13,
+      "expiry_date": "2024-08-15",
+      "pricing_model": "YEARLY",
+      "unit_price": "60000.00",
+      "vendor_name": "JetBrains",
+      "description": "IntelliJ IDEA Ultimate annual license",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "permissions.permissionpolicy",
+    "pk": "550e8400-e29b-41d4-a716-446655440030",
+    "fields": {
+      "name": "開発部ポリシー",
+      "description": "開発部門の標準的なリソースアクセスポリシー",
+      "policy_type": "DEPARTMENT",
+      "target_department": "開発部",
+      "priority": 2,
+      "allowed_device_types": ["LAPTOP", "DESKTOP", "TABLET"],
+      "allowed_software": ["Microsoft Office 365", "JetBrains IntelliJ IDEA"],
+      "max_devices_per_type": {"LAPTOP": 2, "DESKTOP": 1, "TABLET": 1},
+      "is_active": true,
+      "effective_from": "2023-01-01",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "permissions.permissionpolicy",
+    "pk": "550e8400-e29b-41d4-a716-446655440031",
+    "fields": {
+      "name": "営業部ポリシー",
+      "description": "営業部門の標準的なリソースアクセスポリシー",
+      "policy_type": "DEPARTMENT",
+      "target_department": "営業部",
+      "priority": 2,
+      "allowed_device_types": ["LAPTOP", "TABLET", "SMARTPHONE"],
+      "allowed_software": ["Microsoft Office 365"],
+      "max_devices_per_type": {"LAPTOP": 1, "TABLET": 1, "SMARTPHONE": 1},
+      "is_active": true,
+      "effective_from": "2023-01-01",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "permissions.permissionpolicy",
+    "pk": "550e8400-e29b-41d4-a716-446655440032",
+    "fields": {
+      "name": "マネージャーポリシー",
+      "description": "管理職の特別なリソースアクセスポリシー",
+      "policy_type": "POSITION",
+      "target_position": "マネージャー",
+      "priority": 1,
+      "allowed_device_types": ["LAPTOP", "DESKTOP", "TABLET", "SMARTPHONE"],
+      "max_devices_per_type": {"LAPTOP": 3, "DESKTOP": 2, "TABLET": 1, "SMARTPHONE": 1},
+      "is_active": true,
+      "effective_from": "2023-01-01",
+      "created_by": 1,
+      "created_at": "2023-01-01T00:00:00Z",
+      "updated_at": "2023-01-01T00:00:00Z"
+    }
+  }
+]

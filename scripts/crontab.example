@@ -1,0 +1,44 @@
+# Crontab configuration for Asset Management System
+# Copy these entries to your crontab using: crontab -e
+# Make sure to adjust paths according to your installation directory
+
+# Set environment variables
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=admin@company.com
+
+# Change to your installation directory
+ASSET_MGMT_DIR=/opt/asset-management
+
+# Daily database backup at 2:00 AM
+0 2 * * * cd $ASSET_MGMT_DIR && ./scripts/backup.sh db >> ./logs/cron.log 2>&1
+
+# Weekly full backup (database + media + config) on Sundays at 3:00 AM
+0 3 * * 0 cd $ASSET_MGMT_DIR && ./scripts/backup.sh full >> ./logs/cron.log 2>&1
+
+# Monthly cleanup of old backups on the 1st day at 4:00 AM
+0 4 1 * * cd $ASSET_MGMT_DIR && ./scripts/backup.sh cleanup >> ./logs/cron.log 2>&1
+
+# Health monitoring every 5 minutes
+*/5 * * * * cd $ASSET_MGMT_DIR && ./scripts/monitor.sh health >> ./logs/cron.log 2>&1
+
+# Full system monitoring every hour
+0 * * * * cd $ASSET_MGMT_DIR && ./scripts/monitor.sh check >> ./logs/cron.log 2>&1
+
+# Generate daily system report at 6:00 AM
+0 6 * * * cd $ASSET_MGMT_DIR && ./scripts/monitor.sh report >> ./logs/cron.log 2>&1
+
+# Security monitoring every 30 minutes
+*/30 * * * * cd $ASSET_MGMT_DIR && docker-compose -f docker-compose.prod.yml exec -T web python manage.py security_monitor >> ./logs/cron.log 2>&1
+
+# Check for license expiry daily at 9:00 AM
+0 9 * * * cd $ASSET_MGMT_DIR && docker-compose -f docker-compose.prod.yml exec -T web python manage.py check_license_expiry >> ./logs/cron.log 2>&1
+
+# Clean up old log files weekly on Saturdays at 1:00 AM
+0 1 * * 6 find $ASSET_MGMT_DIR/logs -name "*.log" -mtime +30 -delete
+
+# Restart services weekly on Sundays at 5:00 AM (optional, for maintenance)
+# 0 5 * * 0 cd $ASSET_MGMT_DIR && ./scripts/deploy.sh restart >> ./logs/cron.log 2>&1
+
+# SSL certificate check daily at 8:00 AM
+0 8 * * * cd $ASSET_MGMT_DIR && ./scripts/monitor.sh ssl >> ./logs/cron.log 2>&1

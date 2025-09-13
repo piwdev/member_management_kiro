@@ -182,7 +182,3 @@ docker-compose down -v
 | `DB_PORT` | データベースポート | `5432` |
 | `LDAP_SERVER_URI` | LDAP サーバーURI | - |
 | `CORS_ALLOWED_ORIGINS` | CORS許可オリジン | `http://localhost:3000` |
-
-## ライセンス
-
-このプロジェクトは社内利用のため、ライセンスは適用されません。

@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from apps.dashboard.views import health_check, readiness_check, liveness_check
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,6 +16,11 @@ urlpatterns = [
     path('api/permissions/', include('apps.permissions.urls')),
     path('api/reports/', include('apps.reports.urls')),
     path('api/', include('apps.dashboard.urls')),
+    
+    # Health check endpoints at root level
+    path('api/health/', health_check, name='api-health-check'),
+    path('api/ready/', readiness_check, name='api-readiness-check'),
+    path('api/live/', liveness_check, name='api-liveness-check'),
 ]
 
 # Serve static and media files in development
