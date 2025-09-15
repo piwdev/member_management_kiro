@@ -1,3 +1,5 @@
+### This App is written by AWS Kiro
+
 # Asset License Management System
 
 社内のソフトウェアライセンス、端末貸し出し、利用権限を統合管理するWebシステム
