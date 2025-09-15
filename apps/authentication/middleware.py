@@ -91,10 +91,15 @@ class SecurityLoggingMiddleware:
         
         # Log access to sensitive endpoints
         if any(path in request.path for path in self.sensitive_paths):
+            # Check if user attribute exists (middleware order dependency)
+            user_info = "Unknown"
+            if hasattr(request, 'user'):
+                user_info = request.user.username if request.user.is_authenticated else 'Anonymous'
+            
             logger.info(
                 f"Access to sensitive endpoint: {request.path} "
                 f"from IP: {ip_address} "
-                f"User: {request.user.username if request.user.is_authenticated else 'Anonymous'}"
+                f"User: {user_info}"
             )
     
     def _log_authentication_events(self, request, response, ip_address):
@@ -249,7 +254,7 @@ class SessionSecurityMiddleware:
         ip_address = get_client_ip(request)
         
         # Check session security for authenticated users
-        if request.user.is_authenticated:
+        if hasattr(request, 'user') and request.user.is_authenticated:
             if not self._check_session_security(request, ip_address):
                 # Session security check failed, log out user
                 from django.contrib.auth import logout

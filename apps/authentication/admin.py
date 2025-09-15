@@ -31,8 +31,7 @@ class UserAdmin(BaseUserAdmin):
         }),
         ('セキュリティ', {
             'fields': (
-                'failed_login_attempts', 'account_locked_until', 
-                'last_password_change'
+                'failed_login_attempts', 'account_locked_until'
             )
         }),
         ('タイムスタンプ', {

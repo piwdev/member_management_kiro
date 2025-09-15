@@ -7,6 +7,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import logout
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 from .models import User, LoginAttempt
 from .serializers import (
@@ -17,6 +19,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class CustomTokenObtainPairView(TokenObtainPairView):
     """カスタムJWTトークン取得ビュー"""
     serializer_class = LoginSerializer

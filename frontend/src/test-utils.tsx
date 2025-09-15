@@ -11,6 +11,17 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
 import { AuthProvider } from './contexts/AuthContext';
 
+// Mock AuthProvider for testing that accepts a value prop
+interface MockAuthProviderProps {
+  children: React.ReactNode;
+  value: typeof mockAuthContextValue;
+}
+
+const MockAuthProvider: React.FC<MockAuthProviderProps> = ({ children, value }) => {
+  const AuthContext = React.createContext(value);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
 // Mock user for testing
 export const mockUser = {
   id: '1',
@@ -85,9 +96,9 @@ export function renderWithProviders(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <I18nextProvider i18n={i18n}>
-            <AuthProvider value={authValue}>
+            <MockAuthProvider value={authValue}>
               {children}
-            </AuthProvider>
+            </MockAuthProvider>
           </I18nextProvider>
         </BrowserRouter>
       </QueryClientProvider>
