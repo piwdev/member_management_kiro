@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     CustomTokenObtainPairView, logout_view, me_view, change_password_view,
-    UserViewSet, LoginAttemptViewSet
+    UserViewSet, LoginAttemptViewSet, register_view, csrf_token_view
 )
 
 # DRF Router for ViewSets
@@ -17,6 +17,8 @@ urlpatterns = [
     path('login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', logout_view, name='logout'),
+    path('register/', register_view, name='register'),
+    path('csrf-token/', csrf_token_view, name='csrf_token'),
     
     # User management endpoints
     path('me/', me_view, name='me'),

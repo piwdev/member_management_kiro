@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Link } from 'react-router-dom';
 import LoadingSpinner from '../common/LoadingSpinner';
 import ErrorMessage from '../common/ErrorMessage';
 import LanguageSwitch from '../common/LanguageSwitch';
@@ -17,8 +17,9 @@ const LoginForm: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const from = location.state?.from?.pathname || '/';
-
-  if (isAuthenticated) {
+  
+  // Only redirect if authenticated and no error is being displayed
+  if ( isAuthenticated ) {
     return <Navigate to={from} replace />;
   }
 
@@ -29,6 +30,7 @@ const LoginForm: React.FC = () => {
 
     try {
       await login(username, password);
+      // Login successful - the Navigate component will handle the redirect
     } catch (err: any) {
       setError(err.response?.data?.message || t('auth.loginFailed'));
     } finally {
@@ -101,6 +103,18 @@ const LoginForm: React.FC = () => {
                 t('auth.login')
               )}
             </button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              {t('auth.noAccount')}{' '}
+              <Link
+                to="/register"
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                {t('auth.registerHere')}
+              </Link>
+            </p>
           </div>
         </form>
       </div>

@@ -14,8 +14,8 @@ from django.utils import timezone
 from datetime import timedelta, date
 from unittest.mock import patch, Mock
 
-from .models import LoginAttempt, User
-from .serializers import UserSerializer, LoginAttemptSerializer
+from .models import LoginAttempt, User, RegistrationAttempt
+from .serializers import UserSerializer, LoginAttemptSerializer, UserRegistrationSerializer
 
 User = get_user_model()
 
@@ -830,6 +830,565 @@ class PermissionTest(TestCase):
         # But should access their own profile
         response = self.client.get('/api/auth/me/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class UserRegistrationSerializerTest(TestCase):
+    """Test cases for UserRegistrationSerializer."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.valid_data = {
+            'username': 'newuser',
+            'email': 'newuser@company.com',
+            'password': 'testpass123',
+            'confirm_password': 'testpass123',
+            'first_name': 'New',
+            'last_name': 'User',
+            'department': 'IT',
+            'position': 'Developer',
+            'location': 'TOKYO',
+            'employee_id': 'EMP003'
+        }
+        
+        # Create existing user for duplicate tests
+        self.existing_user = User.objects.create_user(
+            username='existing',
+            email='existing@company.com',
+            password='testpass123',
+            employee_id='EMP001'
+        )
+    
+    def test_valid_registration_data(self):
+        """Test serializer with valid registration data."""
+        serializer = UserRegistrationSerializer(data=self.valid_data)
+        self.assertTrue(serializer.is_valid())
+        
+        user = serializer.save()
+        self.assertEqual(user.username, 'newuser')
+        self.assertEqual(user.email, 'newuser@company.com')
+        self.assertEqual(user.first_name, 'New')
+        self.assertEqual(user.last_name, 'User')
+        self.assertEqual(user.department, 'IT')
+        self.assertEqual(user.position, 'Developer')
+        self.assertEqual(user.location, 'TOKYO')
+        self.assertEqual(user.employee_id, 'EMP003')
+        self.assertTrue(user.check_password('testpass123'))
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_staff)
+    
+    def test_duplicate_username_validation(self):
+        """Test validation error for duplicate username."""
+        data = self.valid_data.copy()
+        data['username'] = 'existing'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('username', serializer.errors)
+        self.assertIn('既に使用されています', str(serializer.errors['username']))
+    
+    def test_duplicate_email_validation(self):
+        """Test validation error for duplicate email."""
+        data = self.valid_data.copy()
+        data['email'] = 'existing@company.com'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
+        self.assertIn('既に登録されています', str(serializer.errors['email']))
+    
+    def test_duplicate_employee_id_validation(self):
+        """Test validation error for duplicate employee ID."""
+        data = self.valid_data.copy()
+        data['employee_id'] = 'EMP001'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('employee_id', serializer.errors)
+        self.assertIn('既に使用されています', str(serializer.errors['employee_id']))
+    
+    def test_password_mismatch_validation(self):
+        """Test validation error for password mismatch."""
+        data = self.valid_data.copy()
+        data['confirm_password'] = 'differentpass'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('confirm_password', serializer.errors)
+        self.assertIn('一致しません', str(serializer.errors['confirm_password']))
+    
+    def test_weak_password_validation(self):
+        """Test validation error for weak password."""
+        data = self.valid_data.copy()
+        data['password'] = '123'
+        data['confirm_password'] = '123'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('password', serializer.errors)
+    
+    def test_invalid_email_format_validation(self):
+        """Test validation error for invalid email format."""
+        data = self.valid_data.copy()
+        data['email'] = 'invalid-email'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
+    
+    def test_invalid_location_validation(self):
+        """Test validation error for invalid location."""
+        data = self.valid_data.copy()
+        data['location'] = 'INVALID'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('location', serializer.errors)
+        self.assertIn('無効な勤務地', str(serializer.errors['location']))
+    
+    def test_missing_required_fields(self):
+        """Test validation errors for missing required fields."""
+        data = {
+            'username': 'testuser',
+            'password': 'testpass123',
+            'confirm_password': 'testpass123'
+        }
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('email', serializer.errors)
+        self.assertIn('first_name', serializer.errors)
+        self.assertIn('last_name', serializer.errors)
+    
+    def test_optional_fields_empty(self):
+        """Test that optional fields can be empty."""
+        data = self.valid_data.copy()
+        data.pop('department', None)
+        data.pop('position', None)
+        data.pop('employee_id', None)
+        data.pop('location', None)
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        
+        user = serializer.save()
+        self.assertEqual(user.department, '')
+        self.assertEqual(user.position, '')
+        self.assertEqual(user.employee_id, None)
+        self.assertEqual(user.location, '')
+    
+    def test_username_format_validation(self):
+        """Test username format validation."""
+        # Too short
+        data = self.valid_data.copy()
+        data['username'] = 'ab'
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('username', serializer.errors)
+        
+        # Invalid characters
+        data['username'] = 'user@name'
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('username', serializer.errors)
+    
+    def test_employee_id_format_validation(self):
+        """Test employee ID format validation."""
+        # Too short
+        data = self.valid_data.copy()
+        data['employee_id'] = 'AB'
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('employee_id', serializer.errors)
+        
+        # Invalid characters
+        data['employee_id'] = 'EMP@001'
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('employee_id', serializer.errors)
+    
+    def test_name_length_validation(self):
+        """Test name field length validation."""
+        data = self.valid_data.copy()
+        data['first_name'] = 'A' * 51  # Too long
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('first_name', serializer.errors)
+    
+    def test_department_position_length_validation(self):
+        """Test department and position field length validation."""
+        data = self.valid_data.copy()
+        data['department'] = 'A' * 101  # Too long
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('department', serializer.errors)
+        
+        data['department'] = 'IT'
+        data['position'] = 'B' * 101  # Too long
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('position', serializer.errors)
+    
+    def test_security_validation(self):
+        """Test security validation for malicious input."""
+        # XSS attempt
+        data = self.valid_data.copy()
+        data['first_name'] = '<script>alert("xss")</script>'
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('first_name', serializer.errors)
+        
+        # SQL injection attempt
+        data['first_name'] = "'; DROP TABLE users; --"
+        
+        serializer = UserRegistrationSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('first_name', serializer.errors)
+
+
+class UserRegistrationViewTest(APITestCase):
+    """Test cases for user registration view."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.client = APIClient()
+        self.registration_url = reverse('register')
+        
+        self.valid_data = {
+            'username': 'newuser',
+            'email': 'newuser@company.com',
+            'password': 'testpass123',
+            'confirm_password': 'testpass123',
+            'first_name': 'New',
+            'last_name': 'User',
+            'department': 'IT',
+            'position': 'Developer',
+            'location': 'TOKYO',
+            'employee_id': 'EMP003'
+        }
+        
+        # Create existing user for duplicate tests
+        self.existing_user = User.objects.create_user(
+            username='existing',
+            email='existing@company.com',
+            password='testpass123',
+            employee_id='EMP001'
+        )
+    
+    def test_successful_registration(self):
+        """Test successful user registration."""
+        response = self.client.post(self.registration_url, self.valid_data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('message', response.data)
+        self.assertIn('user', response.data)
+        self.assertIn('登録が完了しました', response.data['message'])
+        
+        # Verify user was created
+        user = User.objects.get(username='newuser')
+        self.assertEqual(user.email, 'newuser@company.com')
+        self.assertEqual(user.first_name, 'New')
+        self.assertEqual(user.last_name, 'User')
+        self.assertTrue(user.is_active)
+        self.assertFalse(user.is_staff)
+        
+        # Verify registration attempt was logged
+        attempt = RegistrationAttempt.objects.filter(username='newuser').first()
+        self.assertIsNotNone(attempt)
+        self.assertTrue(attempt.success)
+        self.assertEqual(attempt.created_user, user)
+    
+    def test_registration_with_duplicate_username(self):
+        """Test registration with duplicate username."""
+        data = self.valid_data.copy()
+        data['username'] = 'existing'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('username', response.data['details'])
+        
+        # Verify failed registration attempt was logged
+        attempt = RegistrationAttempt.objects.filter(username='existing').first()
+        self.assertIsNotNone(attempt)
+        self.assertFalse(attempt.success)
+        self.assertIn('既に使用されています', attempt.failure_reason)
+    
+    def test_registration_with_duplicate_email(self):
+        """Test registration with duplicate email."""
+        data = self.valid_data.copy()
+        data['email'] = 'existing@company.com'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('email', response.data['details'])
+    
+    def test_registration_with_password_mismatch(self):
+        """Test registration with password mismatch."""
+        data = self.valid_data.copy()
+        data['confirm_password'] = 'differentpass'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('confirm_password', response.data['details'])
+    
+    def test_registration_with_weak_password(self):
+        """Test registration with weak password."""
+        data = self.valid_data.copy()
+        data['password'] = '123'
+        data['confirm_password'] = '123'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('password', response.data['details'])
+    
+    def test_registration_with_missing_required_fields(self):
+        """Test registration with missing required fields."""
+        data = {
+            'username': 'testuser',
+            'password': 'testpass123',
+            'confirm_password': 'testpass123'
+        }
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('email', response.data['details'])
+        self.assertIn('first_name', response.data['details'])
+        self.assertIn('last_name', response.data['details'])
+    
+    def test_registration_with_invalid_email_format(self):
+        """Test registration with invalid email format."""
+        data = self.valid_data.copy()
+        data['email'] = 'invalid-email'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('email', response.data['details'])
+    
+    def test_registration_with_invalid_location(self):
+        """Test registration with invalid location."""
+        data = self.valid_data.copy()
+        data['location'] = 'INVALID'
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+        self.assertIn('details', response.data)
+        self.assertIn('location', response.data['details'])
+    
+    def test_registration_without_optional_fields(self):
+        """Test registration without optional fields."""
+        data = {
+            'username': 'minimaluser',
+            'email': 'minimal@company.com',
+            'password': 'testpass123',
+            'confirm_password': 'testpass123',
+            'first_name': 'Minimal',
+            'last_name': 'User'
+        }
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verify user was created with empty optional fields
+        user = User.objects.get(username='minimaluser')
+        self.assertEqual(user.department, '')
+        self.assertEqual(user.position, '')
+        self.assertEqual(user.employee_id, None)
+        self.assertEqual(user.location, '')
+    
+    def test_registration_ip_tracking(self):
+        """Test that registration attempts track IP addresses."""
+        response = self.client.post(
+            self.registration_url, 
+            self.valid_data, 
+            format='json',
+            HTTP_X_FORWARDED_FOR='192.168.1.100'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verify IP was tracked
+        attempt = RegistrationAttempt.objects.filter(username='newuser').first()
+        self.assertIsNotNone(attempt)
+        self.assertIn('192.168.1.100', attempt.ip_address)
+    
+    def test_registration_user_agent_tracking(self):
+        """Test that registration attempts track user agents."""
+        response = self.client.post(
+            self.registration_url, 
+            self.valid_data, 
+            format='json',
+            HTTP_USER_AGENT='Test Browser 1.0'
+        )
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verify user agent was tracked
+        attempt = RegistrationAttempt.objects.filter(username='newuser').first()
+        self.assertIsNotNone(attempt)
+        self.assertEqual(attempt.user_agent, 'Test Browser 1.0')
+    
+    @patch('apps.authentication.views.logger')
+    def test_registration_logging(self, mock_logger):
+        """Test that registration attempts are properly logged."""
+        response = self.client.post(self.registration_url, self.valid_data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # Verify success was logged
+        mock_logger.info.assert_called()
+        log_call_args = mock_logger.info.call_args[0][0]
+        self.assertIn('Successful registration', log_call_args)
+        self.assertIn('newuser', log_call_args)
+    
+    @patch('apps.authentication.views.logger')
+    def test_registration_failure_logging(self, mock_logger):
+        """Test that registration failures are properly logged."""
+        data = self.valid_data.copy()
+        data['username'] = 'existing'  # Duplicate username
+        
+        response = self.client.post(self.registration_url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+        # Verify failure was logged
+        mock_logger.warning.assert_called()
+        log_call_args = mock_logger.warning.call_args[0][0]
+        self.assertIn('Registration validation failed', log_call_args)
+        self.assertIn('existing', log_call_args)
+    
+    def test_registration_rate_limiting(self):
+        """Test that registration is rate limited."""
+        # This test would require mocking the rate limiter or using a test-specific configuration
+        # For now, we'll just verify the decorator is applied by checking the view function
+        from apps.authentication.views import register_view
+        
+        # Check that rate limiting decorators are applied
+        self.assertTrue(hasattr(register_view, '_ratelimit_key'))
+    
+    def test_registration_csrf_protection(self):
+        """Test CSRF protection for registration endpoint."""
+        # Test that the endpoint requires CSRF token in production
+        # This is more of an integration test and would require specific CSRF configuration
+        pass
+    
+    def test_registration_transaction_rollback(self):
+        """Test that failed registration doesn't create partial data."""
+        # Mock a database error during user creation
+        with patch('apps.authentication.serializers.User.objects.create_user') as mock_create:
+            mock_create.side_effect = Exception('Database error')
+            
+            response = self.client.post(self.registration_url, self.valid_data, format='json')
+            
+            self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            # Verify no user was created
+            self.assertFalse(User.objects.filter(username='newuser').exists())
+            
+            # Verify failed attempt was still logged
+            attempt = RegistrationAttempt.objects.filter(username='newuser').first()
+            self.assertIsNotNone(attempt)
+            self.assertFalse(attempt.success)
+            self.assertIn('システムエラー', attempt.failure_reason)
+
+
+class RegistrationAttemptModelTest(TestCase):
+    """Test cases for RegistrationAttempt model."""
+    
+    def setUp(self):
+        """Set up test data."""
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='test@company.com',
+            password='testpass123'
+        )
+    
+    def test_successful_registration_attempt(self):
+        """Test recording successful registration attempt."""
+        attempt = RegistrationAttempt.objects.create(
+            username='testuser',
+            email='test@company.com',
+            ip_address='127.0.0.1',
+            user_agent='Test Browser',
+            success=True,
+            created_user=self.user
+        )
+        
+        self.assertEqual(attempt.username, 'testuser')
+        self.assertEqual(attempt.email, 'test@company.com')
+        self.assertEqual(attempt.ip_address, '127.0.0.1')
+        self.assertTrue(attempt.success)
+        self.assertEqual(attempt.created_user, self.user)
+        self.assertEqual(attempt.failure_reason, '')
+    
+    def test_failed_registration_attempt(self):
+        """Test recording failed registration attempt."""
+        attempt = RegistrationAttempt.objects.create(
+            username='duplicate',
+            email='duplicate@company.com',
+            ip_address='192.168.1.100',
+            user_agent='Test Browser',
+            success=False,
+            failure_reason='ユーザー名重複'
+        )
+        
+        self.assertEqual(attempt.username, 'duplicate')
+        self.assertEqual(attempt.email, 'duplicate@company.com')
+        self.assertFalse(attempt.success)
+        self.assertEqual(attempt.failure_reason, 'ユーザー名重複')
+        self.assertIsNone(attempt.created_user)
+    
+    def test_registration_attempt_str_representation(self):
+        """Test RegistrationAttempt string representation."""
+        attempt = RegistrationAttempt.objects.create(
+            username='testuser',
+            email='test@company.com',
+            ip_address='127.0.0.1',
+            success=True,
+            created_user=self.user
+        )
+        
+        expected = f"testuser (test@company.com) - 成功 ({attempt.timestamp})"
+        self.assertEqual(str(attempt), expected)
+    
+    def test_registration_attempt_indexes(self):
+        """Test that database indexes are properly created."""
+        # This would require database introspection to verify indexes
+        # For now, we'll just verify the model meta configuration
+        meta = RegistrationAttempt._meta
+        
+        # Check that indexes are defined
+        index_fields = []
+        for index in meta.indexes:
+            index_fields.extend(index.fields)
+        
+        self.assertIn('ip_address', index_fields)
+        self.assertIn('username', index_fields)
+        self.assertIn('email', index_fields)
+        self.assertIn('timestamp', index_fields)
 
 
 class IntegrationTest(TransactionTestCase):

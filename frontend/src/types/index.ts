@@ -96,6 +96,19 @@ export interface LoginResponse {
   user: User;
 }
 
+export interface RegisterFormData {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  department: string;
+  position: string;
+  location: string;
+  employeeId?: string;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data: T;

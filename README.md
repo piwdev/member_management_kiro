@@ -1,4 +1,4 @@
-### This App is written by AWS Kiro
+### This App is written by AWS Kiro and genuine human(piwdev)
 
 # Asset License Management System
 

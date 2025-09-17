@@ -161,3 +161,39 @@ class LoginAttempt(models.Model):
     def __str__(self):
         status = "成功" if self.success else "失敗"
         return f"{self.username} - {status} ({self.timestamp})"
+
+
+class RegistrationAttempt(models.Model):
+    """
+    Model to track registration attempts for security monitoring.
+    """
+    
+    username = models.CharField(max_length=150)
+    email = models.EmailField()
+    ip_address = models.GenericIPAddressField()
+    user_agent = models.TextField(blank=True)
+    success = models.BooleanField(default=False)
+    failure_reason = models.CharField(max_length=100, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    created_user = models.ForeignKey(
+        User, 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL,
+        related_name='registration_attempts'
+    )
+    
+    class Meta:
+        db_table = 'auth_registration_attempts'
+        verbose_name = '登録試行'
+        verbose_name_plural = '登録試行'
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['ip_address', 'timestamp']),
+            models.Index(fields=['username', 'timestamp']),
+            models.Index(fields=['email', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        status = "成功" if self.success else "失敗"
+        return f"{self.username} ({self.email}) - {status} ({self.timestamp})"

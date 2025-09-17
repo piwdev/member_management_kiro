@@ -7,19 +7,21 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth import logout
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+from django.db import transaction
+from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
 
-from .models import User, LoginAttempt
+from .models import User, LoginAttempt, RegistrationAttempt
 from .serializers import (
     LoginSerializer, UserSerializer, ChangePasswordSerializer, 
-    LoginAttemptSerializer
+    LoginAttemptSerializer, UserRegistrationSerializer
 )
 
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
 class CustomTokenObtainPairView(TokenObtainPairView):
     """カスタムJWTトークン取得ビュー"""
     serializer_class = LoginSerializer
@@ -32,7 +34,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         except Exception as e:
             logger.warning(
                 f"Login failed for user: {request.data.get('username', 'unknown')} "
-                f"from IP: {self._get_client_ip(request)}"
+                f"from IP: {_get_client_ip(request)}"
             )
             return Response(
                 {'error': str(e)}, 
@@ -44,7 +46,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         
         logger.info(
             f"Successful login for user: {user.username} "
-            f"from IP: {self._get_client_ip(request)}"
+            f"from IP: {_get_client_ip(request)}"
         )
 
         return Response({
@@ -52,15 +54,6 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             'refresh': str(refresh),
             'user': UserSerializer(user).data
         })
-
-    def _get_client_ip(self, request):
-        """クライアントIPアドレスを取得"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
-        return ip
 
 
 @api_view(['POST'])
@@ -86,6 +79,122 @@ def logout_view(request):
             {'error': 'ログアウト処理中にエラーが発生しました。'}, 
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
+@ratelimit(key='header:user-agent', rate='10/h', method='POST', block=True)
+def register_view(request):
+    """ユーザー登録ビュー"""
+    ip_address = _get_client_ip(request)
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    
+    # 登録データの取得
+    username = request.data.get('username', '')
+    email = request.data.get('email', '')
+    
+    try:
+        with transaction.atomic():
+            # シリアライザーでバリデーション
+            serializer = UserRegistrationSerializer(data=request.data)
+            
+            if serializer.is_valid():
+                # ユーザー作成
+                user = serializer.save()
+                
+                # 成功時の登録試行履歴を記録
+                RegistrationAttempt.objects.create(
+                    username=username,
+                    email=email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    success=True,
+                    created_user=user
+                )
+                
+                logger.info(
+                    f"Successful registration for user: {user.username} "
+                    f"from IP: {ip_address}"
+                )
+                
+                # 成功レスポンス
+                return Response({
+                    'message': '登録が完了しました。ログインしてください。',
+                    'user': UserSerializer(user).data
+                }, status=status.HTTP_201_CREATED)
+            
+            else:
+                # バリデーションエラー時の登録試行履歴を記録
+                failure_reasons = []
+                for field, errors in serializer.errors.items():
+                    if isinstance(errors, list):
+                        failure_reasons.extend([str(error) for error in errors])
+                    else:
+                        failure_reasons.append(str(errors))
+                
+                failure_reason = '; '.join(failure_reasons[:100])  # 100文字制限
+                
+                RegistrationAttempt.objects.create(
+                    username=username,
+                    email=email,
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    success=False,
+                    failure_reason=failure_reason
+                )
+                
+                logger.warning(
+                    f"Registration validation failed for username: {username}, "
+                    f"email: {email} from IP: {ip_address}. "
+                    f"Errors: {failure_reason}"
+                )
+                
+                return Response({
+                    'error': '登録に失敗しました。',
+                    'details': serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+    except Exception as e:
+        # 予期しないエラー時の登録試行履歴を記録
+        RegistrationAttempt.objects.create(
+            username=username,
+            email=email,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=False,
+            failure_reason=f'システムエラー: {str(e)[:90]}'
+        )
+        
+        logger.error(
+            f"Registration system error for username: {username}, "
+            f"email: {email} from IP: {ip_address}. "
+            f"Error: {str(e)}"
+        )
+        
+        return Response({
+            'error': 'システムエラーが発生しました。しばらく時間をおいてから再試行してください。'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+@ensure_csrf_cookie
+def csrf_token_view(request):
+    """CSRFトークン取得ビュー"""
+    return Response({
+        'csrfToken': get_token(request)
+    })
+
+
+def _get_client_ip(request):
+    """クライアントIPアドレスを取得"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
+    return ip
 
 
 @api_view(['GET'])

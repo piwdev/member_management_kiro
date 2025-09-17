@@ -4,6 +4,7 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 djangorestframework-simplejwt==5.3.0
 django-auth-ldap==4.6.0
+django-ratelimit==4.1.0
 
 # Database
 psycopg==3.1.13

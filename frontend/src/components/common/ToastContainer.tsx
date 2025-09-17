@@ -31,7 +31,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   }, []);
 
   const showToast = useCallback((toast: Omit<ToastProps, 'id' | 'onClose'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = Math.random().toString(36).slice(2, 11);
     const newToast = {
       ...toast,
       id,
@@ -67,7 +67,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      
+
       {/* Toast Container */}
       <div className="fixed top-0 right-0 z-50 p-6 space-y-4 pointer-events-none">
         {toasts.map(toast => (

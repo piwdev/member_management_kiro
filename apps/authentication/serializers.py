@@ -1,7 +1,16 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.db import transaction
 from .models import User, LoginAttempt
+from .validators import (
+    validate_password_strength, 
+    validate_employee_id_format,
+    validate_username_format,
+    validate_name_format,
+    validate_department_position_format,
+    comprehensive_input_validation
+)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -109,7 +118,7 @@ class LoginSerializer(serializers.Serializer):
         
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
+            ip = x_forwarded_for.split(',')[0].strip()
         else:
             ip = request.META.get('REMOTE_ADDR', '127.0.0.1')
         return ip
@@ -176,6 +185,133 @@ class LoginAttemptSerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.get_full_name() or obj.user.username
         return obj.username
+
+class UserRegistrationSerializer(serializers.ModelSerializer):
+    """ユーザー登録用シリアライザー"""
+    password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'username', 'email', 'password', 'confirm_password',
+            'first_name', 'last_name', 'employee_id', 
+            'department', 'position', 'location'
+        ]
+        extra_kwargs = {
+            'email': {'required': True},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+        }
+    
+    def validate_username(self, value):
+        """ユーザー名のバリデーション"""
+        # 入力サニタイズとセキュリティチェック
+        value = comprehensive_input_validation(value, 'ユーザー名')
+        validate_username_format(value)
+        
+        # 重複チェック
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError(
+                'このユーザー名は既に使用されています。'
+            )
+        
+        return value
+    
+    def validate_email(self, value):
+        """メールアドレスのバリデーション"""
+        # 入力サニタイズとセキュリティチェック
+        value = comprehensive_input_validation(value, 'メールアドレス')
+        
+        # 重複チェック
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError(
+                'このメールアドレスは既に登録されています。'
+            )
+        
+        return value
+    
+    def validate_password(self, value):
+        """パスワードのバリデーション"""
+        validate_password_strength(value)
+        return value
+    
+    def validate_employee_id(self, value):
+        """社員IDのバリデーション"""
+        if value:  # 任意フィールドなので空の場合はスキップ
+            value = comprehensive_input_validation(value, '社員ID')
+            validate_employee_id_format(value)
+            
+            # 重複チェック
+            if User.objects.filter(employee_id=value).exists():
+                raise serializers.ValidationError(
+                    'この社員IDは既に使用されています。'
+                )
+        
+        return value
+    
+    def validate_first_name(self, value):
+        """名のバリデーション"""
+        value = comprehensive_input_validation(value, '名')
+        validate_name_format(value, '名')
+        return value
+    
+    def validate_last_name(self, value):
+        """姓のバリデーション"""
+        value = comprehensive_input_validation(value, '姓')
+        validate_name_format(value, '姓')
+        return value
+    
+    def validate_department(self, value):
+        """部署のバリデーション"""
+        if value:
+            value = comprehensive_input_validation(value, '部署')
+            validate_department_position_format(value, '部署')
+        return value
+    
+    def validate_position(self, value):
+        """役職のバリデーション"""
+        if value:
+            value = comprehensive_input_validation(value, '役職')
+            validate_department_position_format(value, '役職')
+        return value
+    
+    def validate_location(self, value):
+        """勤務地のバリデーション"""
+        if value and value not in dict(User.LOCATION_CHOICES):
+            raise serializers.ValidationError(
+                '無効な勤務地が選択されています。'
+            )
+        return value
+    
+    def validate(self, attrs):
+        """全体的なバリデーション"""
+        # パスワード確認
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({
+                'confirm_password': 'パスワードが一致しません。'
+            })
+        
+        # confirm_passwordは保存時に不要なので削除
+        attrs.pop('confirm_password', None)
+        
+        return attrs
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        """ユーザー作成"""
+        # パスワードを取り出してハッシュ化
+        password = validated_data.pop('password')
+        
+        # ユーザー作成
+        user = User.objects.create_user(
+            password=password,
+            is_active=True,  # デフォルトでアクティブ
+            **validated_data
+        )
+        
+        return user
+
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 

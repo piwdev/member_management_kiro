@@ -9,6 +9,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/common/Layout';
 import { ToastProvider } from './components/common/ToastContainer';
 import LoginForm from './components/auth/LoginForm';
+import RegisterForm from './components/auth/RegisterForm';
 import Dashboard from './components/dashboard/Dashboard';
 import { ReportsManagement } from './components/reports';
 import './i18n';
@@ -22,6 +23,7 @@ function App() {
             <ToastProvider>
               <Routes>
               <Route path="/login" element={<LoginForm />} />
+              <Route path="/register" element={<RegisterForm />} />
               <Route
                 path="/*"
                 element={
